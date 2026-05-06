@@ -1,95 +1,44 @@
-# AI-Powered LinkedIn Post Generator
+# LinkedIn Post Generator
 
-This is a Google Colab notebook where I built an AI Agent using LangChain that generates professional LinkedIn posts based on a user-provided topic and language. The agent uses conditional routing to decide whether to send the writing job to a Tech Writer Agent or a General Writer Agent.
+This is my assignment for the AI Agents module. I built an AI agent using LangChain that takes a topic and a language from the user and generates a professional LinkedIn post.
 
-## What this notebook actually does
+The main idea of this project is the conditional routing part. Instead of one big writer that handles every kind of topic, I made two specialized writer agents and a small router agent that decides which one should handle the request. If the topic is something tech related, the request goes to the Tech Writer Agent. Otherwise it goes to the General Writer Agent.
 
-You give the agent a **topic** (like "AI in Healthcare" or "Work-Life Balance") and a **language** (like English, Bengali, Spanish), and it:
+## How the agent works
 
-1. Classifies the topic as either **Tech** or **General**
-2. Routes the request to the appropriate writer agent
-3. Generates a professional LinkedIn post that is 2-4 paragraphs long, written in the requested language, and ends with a thoughtful question or call-to-action
+When you give it a topic and a language, the flow is basically this. First the router agent reads the topic and classifies it as either Tech or General. The router is just a small LLM call with a strict prompt that forces it to output only one word, either Tech or General. Then based on that classification, the request gets handed over to one of the two writer agents. The chosen writer takes the topic and the language and generates the actual LinkedIn post.
 
-## Agent workflow and routing logic
+The routing logic is implemented using RunnableBranch from LangChain. RunnableBranch takes a list of conditions and runnables and picks the first one whose condition is true. I am using a small lambda function as the condition that checks if the router output starts with the word tech, and if it does it picks the tech writer chain. Otherwise it falls through to the general writer as the default.
 
-```
-            ┌─────────────────────┐
-            │  User Input         │
-            │  (topic, language)  │
-            └──────────┬──────────┘
-                       │
-                       ▼
-            ┌─────────────────────┐
-            │   Router Agent      │
-            │  (classifies topic) │
-            └──────────┬──────────┘
-                       │
-              ┌────────┴────────┐
-              │                 │
-        category =           category =
-         "Tech"              "General"
-              │                 │
-              ▼                 ▼
-       ┌────────────┐    ┌────────────┐
-       │Tech Writer │    │  General   │
-       │   Agent    │    │   Writer   │
-       └─────┬──────┘    └─────┬──────┘
-             │                 │
-             └────────┬────────┘
-                      │
-                      ▼
-             ┌─────────────────┐
-             │  LinkedIn Post  │
-             │  (final output) │
-             └─────────────────┘
-```
+I had to use startswith and lowercasing instead of a strict equality check because LLMs sometimes add a trailing period or change the capitalization even when you tell them not to, and that would break a strict equality check.
 
-The conditional handover is implemented using LangChain's `RunnableBranch`. The router is a small LLM call that returns a single label ("Tech" or "General"), and that label is used to pick the next chain in the pipeline.
+## What is in each file
 
-## Steps in the notebook
+LinkedIn_Post_Generator_ShadmanSakibRahman.ipynb is the main notebook. It has all the code, the router agent, both writer agents, the routing logic, and four demo cells at the bottom that show the agent working on different topics and languages.
 
-1. **Setup** - installs `langchain`, `langchain-groq`, `langchain-core`
-2. **API Key** - prompts for a free Groq API key (from [console.groq.com](https://console.groq.com/keys))
-3. **LLM Setup** - initializes `llama-3.3-70b-versatile` via Groq with temperature 0.7
-4. **Router Agent** - classifies any topic into "Tech" or "General" with a one-word output
-5. **Tech Writer Agent** - generates posts with a credible, forward-looking tone
-6. **General Writer Agent** - generates posts with a warm, human, professional tone
-7. **Conditional Routing** - uses `RunnableBranch` to hand off based on the router's classification
-8. **Main pipeline** - puts everything together in one chain
-9. **Demos** - runs four examples covering all combinations of Tech/General and English/Bengali
-10. **Reflection** - what I learned
+README.md is this file.
 
-## How to run
+build_notebook.py is the python script I used to generate the notebook programmatically. I wrote it because the notebook has a lot of cells and editing JSON by hand is annoying.
 
-1. Open `LinkedIn_Post_Generator_ShadmanSakibRahman.ipynb` in [Google Colab](https://colab.research.google.com/)
-2. Run the first cell to install dependencies
-3. When the API key prompt shows up, paste your free Groq API key
-4. Run the rest of the cells in order
-5. The four demos will print at the bottom showing the routing decision and the final post
+demo_video_script.md is just the script I followed when recording the demo video.
 
-## Demos included
+## How to run it
 
-| # | Topic | Language | Expected Routing |
-|---|-------|----------|------------------|
-| 1 | AI in Healthcare | English | Tech Writer |
-| 2 | Work-Life Balance for Young Professionals | Bengali | General Writer |
-| 3 | The Rise of Edge Computing | Bengali | Tech Writer |
-| 4 | Leadership Lessons from Failure | English | General Writer |
+Open the ipynb file in Google Colab. The first code cell installs the required packages which are langchain, langchain-groq, and langchain-core. The second cell asks for a Groq API key. You can get a free one from console.groq.com slash keys. Paste the key into the input box and press enter. After that just run the rest of the cells in order or use Runtime then Run all.
 
-Demos 1 and 2 cover the assignment's required examples (Tech in English, General in Bengali). The other two are bonus to show that the routing and language selection are independent.
+The four demos at the bottom are. Demo 1 is AI in Healthcare in English which goes to the Tech Writer. Demo 2 is Work-Life Balance for Young Professionals in Bengali which goes to the General Writer. Demo 3 is The Rise of Edge Computing in Bengali which is a Tech topic but in a different language. Demo 4 is Leadership Lessons from Failure in English which goes to the General Writer.
 
-## Why I made certain choices
+Demos 1 and 2 are the two required demos from the assignment. The other two are extra to show that the routing and the language switching work independently of each other.
 
-- **Groq + llama-3.3-70b** - free tier, fast inference, and the 70B model handles Bengali well enough that I did not need a separate translation step
-- **`.lower().startswith("tech")` for routing** - LLMs sometimes add trailing punctuation or change capitalization even when told not to, so this is more robust than strict equality
-- **Two separate writer prompts with distinct voices** - "credible and forward-looking" for Tech vs "warm and human" for General, otherwise the posts end up sounding the same regardless of which agent ran
+## What I learned
+
+The harder part was not actually the writer agents. It was making the router output reliable enough to drive the branching. Even with a strict system prompt the LLM sometimes adds extra characters, so the conditional check needs to be a bit forgiving.
+
+The other thing I had to think about was making the two writers actually feel different. If both writers have similar prompts the output sounds the same regardless of which one ran, which kind of defeats the whole point of having two specialized agents. So I gave the Tech Writer a credible and forward-looking voice and the General Writer a warmer and more human voice, and that made the outputs noticeably different in tone.
 
 ## Tools used
 
-- Python 3
-- LangChain (LCEL chains, RunnableBranch, RunnablePassthrough, RunnableLambda)
-- Groq API (`llama-3.3-70b-versatile`)
-- Google Colab
+Python 3, LangChain, langchain-groq, Groq API with the llama-3.3-70b-versatile model, Google Colab.
 
 ## Author
 
